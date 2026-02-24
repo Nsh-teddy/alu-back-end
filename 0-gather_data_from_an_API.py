@@ -1,41 +1,57 @@
 #!/usr/bin/python3
 """
-Script that, for a given employee ID, returns information about
-his/her TODO list progress using a REST API.
+Fetch and display an employee's TODO list progress
+from https://jsonplaceholder.typicode.com
 """
+
 import requests
 import sys
 
 
-if __name__ == "__main__":
-    # Get employee ID from the first command line argument
-    if len(sys.argv) < 2:
-        exit()
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: python3 0-gather_data_from_an_API.py <employee_id>")
+        sys.exit(1)
 
-    employee_id = sys.argv[1]
+    try:
+        employee_id = int(sys.argv[1])
+    except ValueError:
+        print("Employee ID must be an integer")
+        sys.exit(1)
+
     base_url = "https://jsonplaceholder.typicode.com"
 
-    # 1. Fetch User data
-    user_url = "{}/users/{}".format(base_url, employee_id)
-    user_res = requests.get(user_url)
-    user_data = user_res.json()
-    employee_name = user_data.get("name")
+    # Fetch employee info
+    user_resp = requests.get(f"{base_url}/users/{employee_id}")
+    if user_resp.status_code != 200:
+        sys.exit(1)
 
-    # 2. Fetch TODO list data
-    todo_url = "{}/todos?userId={}".format(base_url, employee_id)
-    todo_res = requests.get(todo_url)
-    todos = todo_res.json()
+    user = user_resp.json()
+    employee_name = user.get("name")
 
-    # 3. Process the tasks
-    done_tasks = [task for task in todos if task.get("completed")]
+    # Fetch todos
+    todos_resp = requests.get(
+        f"{base_url}/todos", params={"userId": employee_id}
+    )
+
+    if todos_resp.status_code != 200:
+        sys.exit(1)
+
+    todos = todos_resp.json()
+
     total_tasks = len(todos)
-    num_done = len(done_tasks)
+    completed_tasks = [t for t in todos if t.get("completed") is True]
+    done_tasks = len(completed_tasks)
 
-    # 4. Print the header
-    # We keep the format call on one line or clean breaks to avoid W503
-    print("Employee {} is done with tasks({}/{}):".format(
-        employee_name, num_done, total_tasks))
+    # Output (EXACT format)
+    print(
+        f"Employee {employee_name} is done "
+        f"with tasks({done_tasks}/{total_tasks}):"
+    )
 
-    # 5. Print the completed tasks with 1 tab and 1 space
-    for task in done_tasks:
-        print("\t {}".format(task.get("title")))
+    for task in completed_tasks:
+        print(f"\t {task.get('title')}")
+
+
+if __name__ == "__main__":
+    main()
